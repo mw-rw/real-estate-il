@@ -1,8 +1,23 @@
 export const dynamic = "force-dynamic";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { runDailyScrape, scrapeYad2 } from "@/lib/scraper";
+import { runDailyScrape } from "@/lib/scraper";
+import { prisma } from "@/lib/prisma";
+
+export async function GET(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const unreadOnly = req.nextUrl.searchParams.get("unread") === "true";
+  const alerts = await prisma.scraperAlert.findMany({
+    where: unreadOnly ? { isRead: false } : {},
+    include: { listing: true },
+    orderBy: { createdAt: "desc" },
+    take: 100,
+  });
+  return NextResponse.json(alerts);
+}
 
 export async function POST() {
   const session = await getServerSession(authOptions);
@@ -12,10 +27,11 @@ export async function POST() {
   return NextResponse.json(result);
 }
 
-export async function GET() {
+export async function PATCH(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const listings = await scrapeYad2("תל אביב");
-  return NextResponse.json({ count: listings.length, sample: listings.slice(0, 3) });
+  const { ids } = await req.json();
+  await prisma.scraperAlert.updateMany({ where: { id: { in: ids } }, data: { isRead: true } });
+  return NextResponse.json({ success: true });
 }
