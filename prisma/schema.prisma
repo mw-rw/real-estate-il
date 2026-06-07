@@ -1,0 +1,364 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ========== AUTH ==========
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?
+  role          UserRole  @default(AGENT)
+  accounts      Account[]
+  sessions      Session[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+enum UserRole {
+  ADMIN
+  AGENT
+  VIEWER
+}
+
+// ========== CONTACTS ==========
+
+model Owner {
+  id         String     @id @default(cuid())
+  name       String
+  phone      String?
+  email      String?
+  idNumber   String?    @unique
+  notes      String?    @db.Text
+  properties Property[]
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+}
+
+model Tenant {
+  id       String   @id @default(cuid())
+  name     String
+  phone    String?
+  email    String?
+  idNumber String?
+  notes    String?  @db.Text
+  leases   Lease[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ========== PROPERTIES ==========
+
+model Building {
+  id         String     @id @default(cuid())
+  name       String
+  address    String
+  city       String
+  zip        String?
+  floors     Int?
+  units      Int?
+  notes      String?    @db.Text
+  properties Property[]
+  documents  Document[]
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+}
+
+model Property {
+  id           String         @id @default(cuid())
+  buildingId   String?
+  building     Building?      @relation(fields: [buildingId], references: [id])
+  ownerId      String
+  owner        Owner          @relation(fields: [ownerId], references: [id])
+  address      String
+  city         String
+  neighborhood String?
+  floor        Int?
+  apartment    String?
+  type         PropertyType   @default(APARTMENT)
+  status       PropertyStatus @default(AVAILABLE)
+  rooms        Float?
+  size         Float?
+  parkingSpots Int?           @default(0)
+  balcony      Boolean        @default(false)
+  elevator     Boolean        @default(false)
+  airConditioning Boolean     @default(false)
+  furnished    Boolean        @default(false)
+  rentPrice    Float?
+  salePrice    Float?
+  vaad         Float?
+  arnona       Float?
+  notes        String?        @db.Text
+  internalCode String?        @unique
+  leases       Lease[]
+  documents    Document[]
+  floorPlans   FloorPlan[]
+  alerts       ScraperAlert[]
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@index([city])
+  @@index([status])
+  @@index([ownerId])
+}
+
+enum PropertyType {
+  APARTMENT
+  PENTHOUSE
+  GARDEN_APARTMENT
+  STUDIO
+  DUPLEX
+  COMMERCIAL
+  OFFICE
+  WAREHOUSE
+  PARKING
+  OTHER
+}
+
+enum PropertyStatus {
+  AVAILABLE
+  RENTED
+  FOR_SALE
+  SOLD
+  MAINTENANCE
+  RESERVED
+}
+
+// ========== LEASES ==========
+
+model Lease {
+  id          String      @id @default(cuid())
+  propertyId  String
+  property    Property    @relation(fields: [propertyId], references: [id])
+  tenantId    String
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+  startDate   DateTime
+  endDate     DateTime
+  monthlyRent Float
+  deposit     Float?
+  paymentDay  Int?        @default(1)
+  status      LeaseStatus @default(ACTIVE)
+  notes       String?     @db.Text
+  payments    Payment[]
+  documents   Document[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+enum LeaseStatus {
+  ACTIVE
+  EXPIRED
+  TERMINATED
+  PENDING
+}
+
+model Payment {
+  id        String        @id @default(cuid())
+  leaseId   String
+  lease     Lease         @relation(fields: [leaseId], references: [id])
+  amount    Float
+  dueDate   DateTime
+  paidDate  DateTime?
+  status    PaymentStatus @default(PENDING)
+  notes     String?
+  createdAt DateTime      @default(now())
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  LATE
+  PARTIAL
+}
+
+// ========== DOCUMENTS ==========
+
+model Document {
+  id         String       @id @default(cuid())
+  name       String
+  type       DocumentType @default(OTHER)
+  url        String
+  size       Int?
+  mimeType   String?
+  propertyId String?
+  property   Property?    @relation(fields: [propertyId], references: [id])
+  buildingId String?
+  building   Building?    @relation(fields: [buildingId], references: [id])
+  leaseId    String?
+  lease      Lease?       @relation(fields: [leaseId], references: [id])
+  uploadedBy String?
+  createdAt  DateTime     @default(now())
+}
+
+model FloorPlan {
+  id         String   @id @default(cuid())
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id])
+  name       String
+  url        String
+  floor      Int?
+  createdAt  DateTime @default(now())
+}
+
+enum DocumentType {
+  CONTRACT
+  FLOOR_PLAN
+  PERMIT
+  INVOICE
+  IDENTITY
+  TABU
+  OTHER
+}
+
+// ========== LEADS ==========
+
+model Lead {
+  id             String        @id @default(cuid())
+  name           String?
+  phone          String?
+  email          String?
+  city           String?
+  neighborhood   String?
+  minRooms       Float?
+  maxRooms       Float?
+  minBudget      Float?
+  maxBudget      Float?
+  moveInDate     DateTime?
+  propertyType   PropertyType?
+  requireParking Boolean?
+  requireElevator Boolean?
+  rawText        String        @db.Text
+  source         LeadSource    @default(MANUAL)
+  sourceUrl      String?
+  aiSummary      String?       @db.Text
+  aiQuestions    String[]
+  aiAnswers      Json?
+  status         LeadStatus    @default(NEW)
+  assignedTo     String?
+  notes          String?       @db.Text
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+}
+
+enum LeadSource {
+  MANUAL
+  YAD2
+  MADLAN
+  PHONE
+  WHATSAPP
+  EMAIL
+  WEBSITE
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  MATCHED
+  CLOSED
+  REJECTED
+}
+
+// ========== SCRAPER ==========
+
+model ScraperListing {
+  id         String         @id @default(cuid())
+  source     ScraperSource
+  externalId String
+  url        String
+  title      String
+  price      Float?
+  rooms      Float?
+  size       Float?
+  address    String?
+  city       String?
+  rawData    Json?
+  firstSeen  DateTime       @default(now())
+  lastSeen   DateTime       @default(now())
+  isActive   Boolean        @default(true)
+  alerts     ScraperAlert[]
+
+  @@unique([source, externalId])
+}
+
+model ScraperAlert {
+  id         String         @id @default(cuid())
+  propertyId String?
+  property   Property?      @relation(fields: [propertyId], references: [id])
+  listingId  String
+  listing    ScraperListing @relation(fields: [listingId], references: [id])
+  alertType  AlertType
+  message    String
+  isRead     Boolean        @default(false)
+  createdAt  DateTime       @default(now())
+}
+
+enum ScraperSource {
+  YAD2
+  MADLAN
+}
+
+enum AlertType {
+  LISTING_DOWN
+  PRICE_CHANGE
+  NEW_LISTING
+  RELISTED
+}
+
+// ========== DAILY REPORTS ==========
+
+model DailyReport {
+  id               String   @id @default(cuid())
+  date             DateTime @unique @db.Date
+  totalProperties  Int
+  available        Int
+  rented           Int
+  forSale          Int
+  maintenance      Int
+  newLeads         Int
+  expiringSoon     Int
+  overduePayments  Int
+  reportData       Json?
+  createdAt        DateTime @default(now())
+}
