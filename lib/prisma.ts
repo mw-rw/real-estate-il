@@ -4,12 +4,9 @@ import { PrismaPg } from "@prisma/adapter-pg";
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
 
 function createPrismaClient() {
-  const connectionString = process.env.DATABASE_URL;
-  if (!connectionString) {
-    // During build/static generation without DB — return a dummy client
-    // that will be replaced at runtime
-    return new PrismaClient() as unknown as PrismaClient;
-  }
+  // Use a placeholder URL at build time — real URL comes from Railway env at runtime
+  const connectionString =
+    process.env.DATABASE_URL ?? "postgresql://build:build@localhost:5432/build";
   const adapter = new PrismaPg({ connectionString });
   return new PrismaClient({ adapter });
 }
