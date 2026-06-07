@@ -16,7 +16,7 @@ import {
 import { signOut } from "next-auth/react";
 
 const navItems = [
-  { href: "/", label: "לוח בקרה", icon: LayoutDashboard },
+  { href: "/dashboard", label: "לוח בקרה", icon: LayoutDashboard },
   { href: "/properties", label: "נכסים", icon: Building2 },
   { href: "/leads", label: "לידים", icon: Users },
   { href: "/alerts", label: "התראות", icon: Bell },

@@ -7,6 +7,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const session = await getServerSession(authOptions);
   if (!session) redirect("/login");
 
+
   return (
     <div className="flex h-screen overflow-hidden">
       <Sidebar />
