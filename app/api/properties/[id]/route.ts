@@ -3,12 +3,13 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  const { id } = await params;
   const property = await prisma.property.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: {
       owner: true,
       building: true,
@@ -30,13 +31,14 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   return NextResponse.json(property);
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  const { id } = await params;
   const body = await req.json();
   const property = await prisma.property.update({
-    where: { id: params.id },
+    where: { id },
     data: body,
     include: { owner: true },
   });
@@ -44,10 +46,11 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   return NextResponse.json(property);
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  await prisma.property.delete({ where: { id: params.id } });
+  const { id } = await params;
+  await prisma.property.delete({ where: { id } });
   return NextResponse.json({ success: true });
 }
